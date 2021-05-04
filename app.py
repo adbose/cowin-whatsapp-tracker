@@ -5,7 +5,6 @@ import geopy
 from geopy.geocoders import Nominatim
 import constants
 import json
-import utils
 from api.messaging import as_twilio_response
 
 
@@ -48,17 +47,16 @@ def bot():
     if latitude:
         # Get the address dict from the geolocation data sent
         geo_location_dict = get_reverse_geocode(geo_coordinates_string)
-        pincode = geo_location_dict.get('postcode', '')
-        print('Pincode:', pincode)
+        # pincode = geo_location_dict.get('postcode', '')
+        # print('Pincode:', pincode)
 
         date_now = datetime.datetime.now().strftime('%d-%m-%Y')
         print("Today's Date:", date_now)
 
-        appointment_api = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'
         
         appointment_response = get_appointment_response_by_pincode(appointment_api)
         
-        location_response = get_location_message(geo_location_dict, appointment_response)
+        location_response = get_location_message(geo_location_dict, date_now)
         return as_twilio_response(location_response)
 
 
@@ -77,33 +75,65 @@ def get_reverse_geocode(coordinates):
 
 
 def get_appointment_response_by_pincode(appointment_api):
+    appointment_api = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'
+
     appointment_data = get_response(appointment_api)
     return appointment_data
 
 
-def get_location_message(geo_location_dict, appointment_response):
+def get_location_message(geo_location_dict, date_now):
     # TODO: Add complete address to show in Location response
     # or add entire address, but remove 'country_code': 'in'
-    village = geo_location_dict.get('village', '')
-    city = geo_location_dict.get('city', '')
-    county = geo_location_dict.get('county', '')
+    # village = geo_location_dict.get('village', '')
+    # city = geo_location_dict.get('city', '')
+    # county = geo_location_dict.get('county', '')
+
+    pincode = geo_location_dict.get('postcode', '')
     district = geo_location_dict.get('state_district', '')
     state = geo_location_dict.get('state', '')
-    if city:
-        address = ', '.join([city, county, district, state])
-    elif village:
-        address = ', '.join([village, county, district, state])
-    else:
-        address = ', '.join([county, district, state])
     
-    location_message = f'''
-Your detected location is {address}.
+    # states_api = base_url + '/v2/admin/location/states'
+    # states_data = get_response(states_api)
+    # print(states_data)
 
-Available vaccine slots: {appointment_response}
+    appointment_api_by_pin = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'.format(pincode=pincode, date_now=date_now)
+    appointment_data = get_response(appointment_api)
+
+    appointment_response = f'''
+    '''
+    sessions = appointment_data.get("sessions", [])
+    if sessions:
+        count = 1
+        for each in session:
+            # Print the name, address, district
+            serial_number = count
+            name = each.get("name", "")
+            address = each.get("address", "")
+            district = each.get("district_name", "")
+            from_time = each.get("from", "")
+            to_time = each.get("to", "")
+            fee_type = each.get("fee_type", "")
+            fee = each.get("fee", 0)
+            available_capacity = each.get("available_capacity", 0)
+            min_age_limit = each.get("min_age_limit", 18)
+            vaccine = each.get("vaccine", "")
+
+            each_response = f'''
+            {serial_number}. {name}
+            {address}, {district}
+            Vaccine: {vaccine}, {fee_type}
+            Available: {available_capacity} 
+            '''
+            appointment_response += each_response
+        
+    location_message = f'''
+Your location pincode is {pincode}.
+
+Available vaccine slots today: {appointment_response}
+
+Visit www.cowin.gov.in to book your vaccination
 '''
     return location_message
-
-
 
 
 # Get states and districts
