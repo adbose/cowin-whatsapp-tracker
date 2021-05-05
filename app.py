@@ -4,9 +4,9 @@ import geopy
 # import geopy.distance
 from geopy.geocoders import Nominatim
 import json
-
+from datetime import datetime
 import constants
-from api import messaging
+from twilio.twiml.messaging_response import MessagingResponse
 
 # Create Flask app instance
 app = Flask(__name__)
@@ -38,11 +38,11 @@ def bot():
 
     if incoming_msg in constants.greeting_tokens:
         # return greeting message
-        return messaging.as_twilio_response(constants.welcome_message)
+        return as_twilio_response(constants.welcome_message)
 
     if 'help' in incoming_msg:
         # return help message
-        return messaging.as_twilio_response(constants.help_message)
+        return as_twilio_response(constants.help_message)
 
     if latitude:
         # Get the address dict from the geolocation data sent
@@ -50,17 +50,23 @@ def bot():
         # pincode = geo_location_dict.get('postcode', '')
         # print('Pincode:', pincode)
 
-        date_now = datetime.datetime.now().strftime('%d-%m-%Y')
+        date_now = datetime.today().strftime('%d-%m-%Y')
         print("Today's Date:", date_now)
 
         
-        appointment_response = get_appointment_response_by_pincode(appointment_api)
+        # appointment_response = get_appointment_response_by_pincode(appointment_api)
         
         location_response = get_location_message(geo_location_dict, date_now)
-        return messaging.as_twilio_response(location_response)
+        return as_twilio_response(location_response)
 
 
 # helper functions
+def as_twilio_response(message: str) -> str:
+    resp = MessagingResponse()
+    msg = resp.message()
+    msg.body(message)
+    return str(resp)
+
 def get_response(url):
     response = requests.get(url)
     return response.json()
@@ -97,7 +103,7 @@ def get_location_message(geo_location_dict, date_now):
     # print(states_data)
 
     appointment_api_by_pin = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'.format(pincode=pincode, date_now=date_now)
-    appointment_data = get_response(appointment_api)
+    appointment_data = get_response(appointment_api_by_pin)
 
     appointment_response = f'''
     '''
@@ -135,6 +141,9 @@ Visit www.cowin.gov.in to book your vaccination
 '''
     return location_message
 
+
+if __name__ == '__main__':
+    app.run()
 
 # Get states and districts
 # base_api = 'https://cdn-api.co-vin/api'
