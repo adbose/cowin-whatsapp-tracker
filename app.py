@@ -3,10 +3,10 @@ import requests
 import geopy
 # import geopy.distance
 from geopy.geocoders import Nominatim
-import constants
 import json
-from api.messaging import as_twilio_response
 
+import constants
+from api import messaging
 
 # Create Flask app instance
 app = Flask(__name__)
@@ -38,11 +38,11 @@ def bot():
 
     if incoming_msg in constants.greeting_tokens:
         # return greeting message
-        return as_twilio_response(constants.welcome_message)
+        return messaging.as_twilio_response(constants.welcome_message)
 
     if 'help' in incoming_msg:
         # return help message
-        return as_twilio_response(constants.help_message)
+        return messaging.as_twilio_response(constants.help_message)
 
     if latitude:
         # Get the address dict from the geolocation data sent
@@ -57,7 +57,7 @@ def bot():
         appointment_response = get_appointment_response_by_pincode(appointment_api)
         
         location_response = get_location_message(geo_location_dict, date_now)
-        return as_twilio_response(location_response)
+        return messaging.as_twilio_response(location_response)
 
 
 # helper functions
