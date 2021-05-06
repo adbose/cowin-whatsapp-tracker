@@ -13,8 +13,8 @@ Type *Help* anytime to to learn how to interact with me.
 
 help_message = f'''
 -Say *Hi* to begin an interaction with me anytime.
+-Enter your pincode to get vaccine availability.
 -Send your location to get Vaccine availability in your Pin-Code
--Enter your district to search for Vaccine availability in your district
 -Visit www.cowin.gov.in to book your vaccination
 -Type *Help* anytime to to learn how to interact with me
 '''

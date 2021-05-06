@@ -1,6 +1,7 @@
 from flask import Flask, request
 import requests
 import geopy
+import re
 # import geopy.distance
 from geopy.geocoders import Nominatim
 import json
@@ -15,7 +16,7 @@ app = Flask(__name__)
 geolocator = Nominatim(user_agent="covid-bot", timeout=5)
 
 # Base API URL
-base_url = 'https://cdn-api.co-vin/api'
+base_url = 'https://cdn-api.co-vin.in/api'
 
 
 # Create the API route
@@ -35,6 +36,7 @@ def bot():
 
     # Get the incoming message from incoming_values
     incoming_msg = incoming_values.get('Body', '').lower()
+
 
     if incoming_msg in constants.greeting_tokens:
         # return greeting message
@@ -59,6 +61,14 @@ def bot():
         location_response = get_location_message(geo_location_dict, date_now)
         return as_twilio_response(location_response)
 
+    m = re.match(r"^\d+$", incoming_msg)
+    if m:
+        date_now = datetime.today().strftime('%d-%m-%Y')
+        return as_twilio_response(get_by_pincode(m.string, date_now))
+    
+
+    return as_twilio_response('Could not understand your message. Please type "help".')
+
 
 # helper functions
 def as_twilio_response(message: str) -> str:
@@ -68,7 +78,7 @@ def as_twilio_response(message: str) -> str:
     return str(resp)
 
 def get_response(url):
-    response = requests.get(url)
+    response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0'})
     return response.json()
 
 
@@ -80,28 +90,14 @@ def get_reverse_geocode(coordinates):
     return address_dict
 
 
-def get_appointment_response_by_pincode(appointment_api):
-    appointment_api = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'
+# def get_appointment_response_by_pincode(appointment_api):
+#     appointment_api = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'
 
-    appointment_data = get_response(appointment_api)
-    return appointment_data
+#     appointment_data = get_response(appointment_api)
+#     return appointment_data
 
 
-def get_location_message(geo_location_dict, date_now):
-    # TODO: Add complete address to show in Location response
-    # or add entire address, but remove 'country_code': 'in'
-    # village = geo_location_dict.get('village', '')
-    # city = geo_location_dict.get('city', '')
-    # county = geo_location_dict.get('county', '')
-
-    pincode = geo_location_dict.get('postcode', '')
-    district = geo_location_dict.get('state_district', '')
-    state = geo_location_dict.get('state', '')
-    
-    # states_api = base_url + '/v2/admin/location/states'
-    # states_data = get_response(states_api)
-    # print(states_data)
-
+def get_by_pincode(pincode, date_now):
     appointment_api_by_pin = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'.format(pincode=pincode, date_now=date_now)
     appointment_data = get_response(appointment_api_by_pin)
 
@@ -109,10 +105,9 @@ def get_location_message(geo_location_dict, date_now):
     '''
     sessions = appointment_data.get("sessions", [])
     if sessions:
-        count = 1
-        for each in session:
+        for idx, each in enumerate(sessions):
             # Print the name, address, district
-            serial_number = count
+            serial_number = idx + 1
             name = each.get("name", "")
             address = each.get("address", "")
             district = each.get("district_name", "")
@@ -131,6 +126,8 @@ def get_location_message(geo_location_dict, date_now):
             Available: {available_capacity} 
             '''
             appointment_response += each_response
+    else:
+        appointment_response = "0"
         
     location_message = f'''
 Your location pincode is {pincode}.
@@ -140,6 +137,22 @@ Available vaccine slots today: {appointment_response}
 Visit www.cowin.gov.in to book your vaccination
 '''
     return location_message
+
+def get_location_message(geo_location_dict, date_now):
+        # TODO: Add complete address to show in Location response
+    # or add entire address, but remove 'country_code': 'in'
+    # village = geo_location_dict.get('village', '')
+    # city = geo_location_dict.get('city', '')
+    # county = geo_location_dict.get('county', '')
+
+    pincode = geo_location_dict.get('postcode', '')
+    
+    # states_api = base_url + '/v2/admin/location/states'
+    # states_data = get_response(states_api)
+    # print(states_data)
+
+    return get_by_pincode(pincode, date_now)
+
 
 
 if __name__ == '__main__':
