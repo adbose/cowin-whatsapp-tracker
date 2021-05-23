@@ -19,10 +19,15 @@ geolocator = Nominatim(user_agent="covid-bot", timeout=5)
 base_url = 'https://cdn-api.co-vin.in/api'
 
 
-# Create the API route
+# The root endpoint
+@app.route("/")
+def hello():
+    return "Hello, World!"
+
+
+# The /bot webhook endpoint
 @app.route('/bot', methods=['POST'])
 def bot():
-    # import ipdb;ipdb.set_trace()
     # Get the incoming message request data
     incoming_values = request.values
     print("Incoming Values:\n", incoming_values)
@@ -31,7 +36,7 @@ def bot():
     latitude = incoming_values.get('Latitude',  '')
     longitude = incoming_values.get('Longitude', '')
 
-    # geopy geolocator API expects coordinates as a single comma separated string of latitude and longitude
+    # Geopy geolocator API expects coordinates as a single comma separated string of latitude and longitude
     geo_coordinates_string = ", ".join((latitude, longitude))
 
     # Get the incoming message from incoming_values
@@ -39,26 +44,19 @@ def bot():
 
 
     if incoming_msg in constants.greeting_tokens:
-        # return greeting message
+        # Return greeting message
         return as_twilio_response(constants.welcome_message)
 
     if 'help' in incoming_msg:
-        # return help message
+        # Return help message
         return as_twilio_response(constants.help_message)
 
     if latitude:
-        # Get the address dict from the geolocation data sent
         geo_location_dict = get_reverse_geocode(geo_coordinates_string)
-        # pincode = geo_location_dict.get('postcode', '')
-        # print('Pincode:', pincode)
 
         date_now = datetime.today().strftime('%d-%m-%Y')
-        print("Today's Date:", date_now)
-
-        
-        # appointment_response = get_appointment_response_by_pincode(appointment_api)
-        
-        location_response = get_location_message(geo_location_dict, date_now)
+        # Get the location wise response
+        location_response = get_location_response(geo_location_dict, date_now)
         return as_twilio_response(location_response)
 
     m = re.match(r"^\d+$", incoming_msg)
@@ -70,7 +68,7 @@ def bot():
     return as_twilio_response('Could not understand your message. Please type "help".')
 
 
-# helper functions
+# Helper functions
 def as_twilio_response(message: str) -> str:
     resp = MessagingResponse()
     msg = resp.message()
@@ -89,15 +87,7 @@ def get_reverse_geocode(coordinates):
     print("Address Dict:", address_dict)
     return address_dict
 
-
-# def get_appointment_response_by_pincode(appointment_api):
-#     appointment_api = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'
-
-#     appointment_data = get_response(appointment_api)
-#     return appointment_data
-
-
-def get_by_pincode(pincode, date_now):
+def get_location_response_by_pincode(pincode, date_now):
     appointment_api_by_pin = base_url + '/v2/appointment/sessions/public/findByPin?pincode={pincode}&date={date_now}'.format(pincode=pincode, date_now=date_now)
     appointment_data = get_response(appointment_api_by_pin)
 
@@ -106,7 +96,6 @@ def get_by_pincode(pincode, date_now):
     sessions = appointment_data.get("sessions", [])
     if sessions:
         for idx, each in enumerate(sessions):
-            # Print the name, address, district
             serial_number = idx + 1
             name = each.get("name", "")
             address = each.get("address", "")
@@ -138,35 +127,12 @@ Visit www.cowin.gov.in to book your vaccination
 '''
     return location_message
 
-def get_location_message(geo_location_dict, date_now):
-        # TODO: Add complete address to show in Location response
-    # or add entire address, but remove 'country_code': 'in'
-    # village = geo_location_dict.get('village', '')
-    # city = geo_location_dict.get('city', '')
-    # county = geo_location_dict.get('county', '')
-
+def get_location_response(geo_location_dict, date_now):
     pincode = geo_location_dict.get('postcode', '')
-    
-    # states_api = base_url + '/v2/admin/location/states'
-    # states_data = get_response(states_api)
-    # print(states_data)
 
-    return get_by_pincode(pincode, date_now)
+    return get_location_response_by_pincode(pincode, date_now)
 
 
 
 if __name__ == '__main__':
     app.run()
-
-# Get states and districts
-# base_api = 'https://cdn-api.co-vin/api'
-# # API to get all the states in India.
-# states_api = base_api + '/v2/admin/location/states'
-# states_data = get_response(states_api)
-# print(states_data)
-
-# API to get districts for a given state
-# district_api = base_api + '/v2/admin/location/districts/{state_id}'
-# district_data_per_state = get_response(district_api)
-
-# Checkout https://apisetu.gov.in/public/marketplace/api/cowin#/ for the CoWin Public API
