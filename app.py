@@ -62,7 +62,7 @@ def bot():
     m = re.match(r"^\d+$", incoming_msg)
     if m:
         date_now = datetime.today().strftime('%d-%m-%Y')
-        return as_twilio_response(get_by_pincode(m.string, date_now))
+        return as_twilio_response(get_location_response_by_pincode(m.string, date_now))
     
 
     return as_twilio_response('Could not understand your message. Please type "help".')
